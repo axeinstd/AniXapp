@@ -5,6 +5,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,8 +26,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,20 +61,28 @@ import androidx.compose.ui.zIndex
 import androidx.datastore.preferences.protobuf.Timestamp
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
-import tech.axeinstd.anilibri3.data.title.LTitle
-import tech.axeinstd.anilibri3.data.title.player.LTitleEpisode
-import tech.axeinstd.anilibri3.data.title.player.LTitleEpisodes
+import tech.axeinstd.anilibria.AniLibria
+import tech.axeinstd.anilibria.data.title.LTitle
+import tech.axeinstd.anilibria.data.title.episode.LEpisode
+import tech.axeinstd.anilibria.data.title.members.LMember
+import tech.axeinstd.anilibria.data.title.members.LMembers
+import tech.axeinstd.anixapp.AniLibriaClient
 import tech.axeinstd.anixapp.R
 import tech.axeinstd.anixapp.releaseScreenRoute
+import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitle>, navController: NavController) {
+fun NormalReleaseLayout(
+    innerPadding: PaddingValues,
+    release: MutableState<LTitle>,
+    navController: NavController
+) {
     val defaultCardModifier = Modifier
         .fillMaxWidth(0.97f)
-    println(release.value.torrents?.list?.size)
     val scrollState = rememberScrollState()
     val descriptionColor = MaterialTheme.colorScheme.surface.copy(
         red = MaterialTheme.colorScheme.surface.red + if (isSystemInDarkTheme()) 0.5f else -0.5f,
@@ -81,7 +93,21 @@ fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitl
         alpha = 0.1f
     )
     val previewHeight = rememberSaveable { mutableIntStateOf(0) }
+    val team = rememberSaveable {
+        mutableStateOf(
+            LMembers(
+                voicing = mutableListOf(),
+                timing = mutableListOf(),
+                decorating = mutableListOf(),
+                translating = mutableListOf()
+            )
+        )
+    }
 
+    if (release.value.members != null) {
+        team.value =
+            AniLibria.Utils.separateMembersByTheirWork(release.value.members as List<LMember>)
+    }
 
     Box {
         Column(
@@ -105,10 +131,12 @@ fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitl
                     contentAlignment = Alignment.Center
                 ) {
                     SubcomposeAsyncImage(
-                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).onGloballyPositioned { layoutCoordinates ->
-                            previewHeight.intValue = layoutCoordinates.size.height
-                        },
-                        model = release.value.posters?.getPosterUrl(),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .onGloballyPositioned { layoutCoordinates ->
+                                previewHeight.intValue = layoutCoordinates.size.height
+                            },
+                        model = AniLibriaClient.baseUrl + release.value.poster?.src,
                         contentDescription = null
                     )
                 }
@@ -124,38 +152,65 @@ fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitl
                     modifier = Modifier.padding(5.dp)
                 ) {
                     Text(
-                        release.value.names?.ru ?: "Имя отсутствует",
+                        release.value.name.main,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text(release.value.names?.en ?: "Английское имя отсутствует", fontSize = 10.sp)
+                    Text(
+                        release.value.name.english ?: "Английское имя отсутствует",
+                        fontSize = 10.sp
+                    )
                     Row {
                         Text("Сезон: ", fontWeight = FontWeight.Bold)
-                        Text("${release.value.season?.year} ${release.value.season?.string}")
+                        Text("${release.value.year} ${release.value.season?.description}")
                     }
                     Row {
                         Text("Тип: ", fontWeight = FontWeight.Bold)
-                        Text("${release.value.type?.string}")
+                        Text("${release.value.type?.description}")
                     }
-                    Row {
+                    FlowRow {
                         Text("Жанры: ", fontWeight = FontWeight.Bold)
-                        Text("${release.value.genres}".slice(1.."${release.value.genres}".length - 2))
+                        release.value.genres.forEachIndexed { index: Int, genre ->
+                            Text(genre.name)
+                            if (index != release.value.genres.size - 1) {
+                                Text(",")
+                                Spacer(modifier = Modifier.width(5.dp))
+                            }
+                        }
                     }
-                    Row {
+                    FlowRow {
                         Text("Озвучка: ", fontWeight = FontWeight.Bold)
-                        Text("${release.value.team?.voice}".slice(1.."${release.value.team?.voice}".length - 2))
+                        team.value.voicing.forEachIndexed { index: Int, member ->
+                            Text(member.nickname)
+                            if (index != team.value.voicing.size - 1) {
+                                Text(",")
+                                Spacer(modifier = Modifier.width(5.dp))
+                            }
+                        }
                     }
-                    Row {
+                    FlowRow {
                         Text("Тайминг: ", fontWeight = FontWeight.Bold)
-                        Text("${release.value.team?.timing}".slice(1.."${release.value.team?.timing}".length - 2))
+                        team.value.timing.forEachIndexed { index: Int, member ->
+                            Text(member.nickname)
+                            if (index != team.value.timing.size - 1) {
+                                Text(",")
+                                Spacer(modifier = Modifier.width(5.dp))
+                            }
+                        }
                     }
-                    Row {
+                    FlowRow {
                         Text("Работа над субтитрами: ", fontWeight = FontWeight.Bold)
-                        Text("${release.value.team?.translator}".slice(1.."${release.value.team?.translator}".length - 2))
+                        team.value.translating.forEachIndexed { index: Int, member ->
+                            Text(member.nickname)
+                            if (index != team.value.translating.size - 1) {
+                                Text(",")
+                                Spacer(modifier = Modifier.width(5.dp))
+                            }
+                        }
                     }
                     Row {
                         Text("Состояние релиза: ", fontWeight = FontWeight.Bold)
-                        Text(release.value.status?.string ?: "?")
+                        Text(if (release.value.is_onging == true) "В работе" else "Завершен")
                     }
                 }
             }
@@ -174,12 +229,12 @@ fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitl
                 )
                 LazyColumn(
                     modifier = Modifier
-                        .height(((release.value.torrents?.list?.size ?: 0) * 60).dp)
+                        .height(((release.value.torrents?.size ?: 0) * 60).dp)
                         .wrapContentHeight()
                         .padding(bottom = 5.dp, start = 5.dp, end = 5.dp),
                     userScrollEnabled = false,
                 ) {
-                    items(release.value.torrents?.list ?: emptyList()) { torrent ->
+                    items(release.value.torrents ?: emptyList()) { torrent ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -189,15 +244,15 @@ fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitl
                             Column {
                                 Row {
                                     Text(
-                                        "Серия ${torrent.episodes.string} ",
+                                        "Серия ${torrent.description} ",
                                         fontWeight = FontWeight.SemiBold
                                     )
-                                    Text(torrent.quality.string, color = descriptionColor)
+                                    Text("${torrent.type.description} ${torrent.quality.description}${if (torrent.codec.value == "x265/HEVC") "HEVC" else ""}", color = descriptionColor)
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(torrent.size_string ?: "")
+                                    Text("${Math.round((torrent.size / 1073741824.0) * 10) / 10.0} GB")
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Icon(
                                         imageVector = ImageVector.Companion.vectorResource(R.drawable.round_upload_24),
@@ -221,7 +276,7 @@ fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitl
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(1.dp))
-                                    Text(longToDate(torrent.uploaded_timestamp))
+                                    Text(parseDate(torrent.updated_at))
                                 }
                             }
                             IconButton(
@@ -250,38 +305,45 @@ fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitl
                     verticalArrangement = Arrangement.spacedBy(10.dp)
 
                 ) {
-                    (release.value.player?.list?.values ?: emptyList()).reversed().forEachIndexed { index: Int, episode: LTitleEpisode ->
-                        val currentCardColor = if (index % 2 == 1) {
-                            episodeCardColor
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainer
-                        }
-                        Card (
-                            colors = CardDefaults.cardColors(
-                                containerColor = currentCardColor
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                    (release.value.episodes ?: emptyList()).reversed()
+                        .forEachIndexed { index: Int, episode: LEpisode ->
+                            val currentCardColor = if (index % 2 == 1) {
+                                episodeCardColor
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainer
+                            }
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = currentCardColor
+                                )
                             ) {
-                                Column(
-                                    modifier = Modifier.weight(1f)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Эпизод ${if ((episode.episode ?: 0.0) % 1.0 == 0.0) episode.episode.toInt() else episode.episode} • ${episode.name ?: " "}", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-                                    Text("Обновлена ${longToDate(episode.created_timestamp)}", color = descriptionColor)
-                                }
-                                TextButton(
-                                    onClick = {},
-                                    modifier = Modifier.width(90.dp)
-                                ) {
-                                    Text("Смотреть")
+                                    Column(
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            "Эпизод ${if (episode.ordinal % 1.0 == 0.0) episode.ordinal.toInt() else episode.ordinal} ${if (episode.name != null) "• ${episode.name}" else ""}",
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 18.sp
+                                        )
+                                        Text(
+                                            "Обновлена ${parseDate(episode.updated_at)}",
+                                            color = descriptionColor
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {}
+                                    ) {
+                                        Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+                                    }
                                 }
                             }
                         }
-                    }
                 }
             }
             Spacer(modifier = Modifier.height(50.dp))
@@ -304,9 +366,17 @@ fun NormalReleaseLayout(innerPadding: PaddingValues, release: MutableState<LTitl
     }
 }
 
+
+@Deprecated("Deprecated")
 fun longToDate(time: Long): String {
-    println(time)
     val date = Date(time * 1000)
+    val format = SimpleDateFormat("dd.MM.yyyy, HH:mm", java.util.Locale.ENGLISH)
+    return format.format(date)
+}
+
+fun parseDate(dateString: String): String {
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.ENGLISH)
+    val date = dateFormat.parse(dateString) ?: 0
     val format = SimpleDateFormat("dd.MM.yyyy, HH:mm", java.util.Locale.ENGLISH)
     return format.format(date)
 }

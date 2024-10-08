@@ -1,6 +1,8 @@
 package tech.axeinstd.anixapp
 
 import android.content.Context
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -48,6 +50,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.zIndex
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -55,7 +58,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import tech.axeinstd.anixapp.ui.theme.AnixappTheme
-import tech.axeinstd.anilibri3.Libria
+import tech.axeinstd.anilibria.AniLibria
 import tech.axeinstd.anixapp.screens.LoadingScreen
 import tech.axeinstd.anixapp.screens.LoginScreen
 import tech.axeinstd.anixapp.screens.home.compose.navigation.BottomNavBarItem
@@ -63,18 +66,33 @@ import tech.axeinstd.anixapp.screens.home.compose.subscreens.FavsHomeScreen
 import tech.axeinstd.anixapp.screens.home.compose.subscreens.MainHomeScreen
 import tech.axeinstd.anixapp.compose.Search
 import tech.axeinstd.anixapp.screens.HomeScreen
+import tech.axeinstd.anixapp.view_models.SplashScreen
 
 const val loadingScreenRoute: String = "loadingScreen"
 const val loginScreenRoute: String = "loginScreen"
 const val releaseScreenRoute: String = "releaseScreen"
 
-val AniLibriaClient: Libria = Libria()
+val AniLibriaClient: AniLibria = AniLibria()
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val context: Context = this
+        val isDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES // check if sys in dark mode
+        val splashScreenViewModel = SplashScreen().apply {
+            setDark(isDark)
+        }
+        val splashScreen = installSplashScreen().setKeepOnScreenCondition {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)  {
+                if (splashScreenViewModel.isDarkMode.value) {
+                    splashScreen.setSplashScreenTheme(R.style.SplashScreenDark)
+                } else {
+                    splashScreen.setSplashScreenTheme(R.style.SplashScreenLight)
+                }
+            }
+            splashScreenViewModel.isLoading.value
+        }
         setContent {
             val navController = rememberNavController()
             enableEdgeToEdge(

@@ -23,7 +23,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.view.WindowInsetsCompat
 import coil.compose.SubcomposeAsyncImage
-import tech.axeinstd.anilibri3.data.title.LTitle
+import tech.axeinstd.anilibria.AniLibria
+import tech.axeinstd.anilibria.data.title.LTitle
+import tech.axeinstd.anixapp.AniLibriaClient
 
 
 @Composable
@@ -54,7 +56,7 @@ fun InformationColumn(innerPadding: PaddingValues, release: MutableState<LTitle>
                             contentAlignment = Alignment.Center
                         ) {
                             SubcomposeAsyncImage(
-                                model = release.value.posters?.getPosterUrl(),
+                                model = AniLibriaClient.url + release.value.poster?.src,
                                 contentDescription = null
                             )
                         }

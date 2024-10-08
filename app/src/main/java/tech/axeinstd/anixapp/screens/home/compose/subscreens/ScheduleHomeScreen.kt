@@ -2,6 +2,7 @@ package tech.axeinstd.anixapp.screens.home.compose.subscreens
 
 import android.content.pm.ModuleInfo
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,40 +37,26 @@ import androidx.compose.ui.input.pointer.motionEventSpy
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import tech.axeinstd.anilibri3.Libria
-import tech.axeinstd.anilibri3.data.title.schedule.LSchedule
-import tech.axeinstd.anilibri3.data.title.schedule.LScheduleDay
+import okhttp3.internal.isSensitiveHeader
+import tech.axeinstd.anilibria.AniLibria
+import tech.axeinstd.anilibria.data.title.schedule.LScheduleTitle
+import tech.axeinstd.anilibria.enumerates.title.ScheduleType
 import tech.axeinstd.anixapp.constants.mapDays
+import tech.axeinstd.anixapp.releaseScreenRoute
+import tech.axeinstd.anixapp.view_models.PreloadTitleInfo
+import tech.axeinstd.anixapp.view_models.ScheduleViewModel
 
 @Composable
-fun ScheduleHomeScreen(AniLibriaClient: Libria, padding: PaddingValues) {
-    val isLoading = rememberSaveable { mutableStateOf(true) }
-    val coroutineScope = rememberCoroutineScope()
-    val schedule = rememberSaveable {
-        mutableStateOf(
-            LSchedule(
-                list = emptyList<LScheduleDay>()
-            )
-        )
-    }
-
-    LaunchedEffect(true) {
-        if (schedule.value.list.isEmpty()) {
-            coroutineScope.launch {
-                isLoading.value = true
-                val res: List<LScheduleDay> = AniLibriaClient.schedule(filter = "id,posters")
-                schedule.value = LSchedule(list = res)
-                isLoading.value = false
-            }
-        }
-    }
+fun ScheduleHomeScreen(AniLibriaClient: AniLibria, padding: PaddingValues, preloadTitleInfo: PreloadTitleInfo, navController: NavController) {
+    val scheduleViewModel = ScheduleViewModel()
 
     Scaffold { innerPadding ->
         val paddingInnerPadding = innerPadding
-        if (isLoading.value) {
+        if (scheduleViewModel.isLoading.value) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -86,7 +73,7 @@ fun ScheduleHomeScreen(AniLibriaClient: Libria, padding: PaddingValues) {
                     Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
                 }
 
-                items(schedule.value.list) { day ->
+                items(AniLibria.Utils.scheduleAsDaysList(scheduleViewModel.schedule.value)) { day ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -108,8 +95,15 @@ fun ScheduleHomeScreen(AniLibriaClient: Libria, padding: PaddingValues) {
                                 SubcomposeAsyncImage(
                                     modifier = Modifier
                                         .height(110.dp)
-                                        .clip(RoundedCornerShape(10.dp)),
-                                    model = title.posters?.getPosterUrl(),
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable {
+                                            preloadTitleInfo.releaseID.intValue = title.release.id
+                                            preloadTitleInfo.preloadTitleInfo.value = title.release
+                                            navController.navigate(releaseScreenRoute) {
+                                                popUpTo(releaseScreenRoute)
+                                            }
+                                        },
+                                    model = AniLibriaClient.baseUrl + title.release.poster?.src,
                                     loading = {
                                         Box(
                                             modifier = Modifier.background(MaterialTheme.colorScheme.background)
@@ -121,18 +115,6 @@ fun ScheduleHomeScreen(AniLibriaClient: Libria, padding: PaddingValues) {
                         }
                     }
                     Spacer(modifier = Modifier.height(20.dp))
-                }
-
-                if (isLoading.value) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
                 }
             }
         }

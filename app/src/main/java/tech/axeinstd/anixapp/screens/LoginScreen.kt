@@ -23,13 +23,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import kotlinx.coroutines.launch
-import tech.axeinstd.anilibri3.Libria
-import tech.axeinstd.anilibri3.data.account.Account
+import tech.axeinstd.anilibria.AniLibria
+import tech.axeinstd.anilibria.data.account.LAccount
+import tech.axeinstd.anixapp.data.storage.UserStorage
 import tech.axeinstd.anixapp.dialogs.LoginDialog
 
 @Composable
-fun LoginScreen(AniLibriaClient: Libria, onComplete: (String) -> Unit) {
+fun LoginScreen(AniLibriaClient: AniLibria, onComplete: (String) -> Unit, onDismiss: (Boolean) -> Unit) {
     val login = rememberSaveable { mutableStateOf("") }
     val passwd = rememberSaveable { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
@@ -75,7 +77,9 @@ fun LoginScreen(AniLibriaClient: Libria, onComplete: (String) -> Unit) {
                 }
                 Row {
                     ElevatedButton(
-                        onClick = {  }
+                        onClick = {
+                            onDismiss(false)
+                        }
                     ) {
                         Text("Пропустить")
                     }
@@ -86,14 +90,14 @@ fun LoginScreen(AniLibriaClient: Libria, onComplete: (String) -> Unit) {
                         onClick = {
                             coroutineScope.launch {
                                 isLoading.value = true
-                                val res: Account =  AniLibriaClient.login(login.value, passwd.value)
+                                val res: LAccount =  AniLibriaClient.auth(login.value, passwd.value)
                                 isLoading.value = false
-                                if (res.err == "error") {
-                                    authText.value = if (res.mes == null) "Непредвиденная ошибка" else "${res.mes}"
+                                if (res.error != null) {
+                                    authText.value = res.error
                                     openAlertDialog.value = true
                                 }
                                 else {
-                                    onComplete(res.toString())
+                                    onComplete(res.token ?: "")
                                 }
                             }
                         }

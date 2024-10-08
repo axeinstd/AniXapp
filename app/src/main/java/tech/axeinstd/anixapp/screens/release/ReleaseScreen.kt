@@ -29,17 +29,36 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.launch
-import tech.axeinstd.anilibri3.Libria
-import tech.axeinstd.anilibri3.data.title.LTitle
+import tech.axeinstd.anilibria.AniLibria
+import tech.axeinstd.anilibria.data.title.LTitle
+import tech.axeinstd.anilibria.data.title.LTitleName
+import tech.axeinstd.anilibria.data.title.genre.LGenre
 import tech.axeinstd.anixapp.screens.release.compose.LargeReleaseLayout
 import tech.axeinstd.anixapp.screens.release.compose.NormalReleaseLayout
 import tech.axeinstd.anixapp.view_models.PreloadTitleInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReleaseScreen(AniLibriaClient: Libria, preloadTitleInfo: PreloadTitleInfo, navController: NavController) {
+fun ReleaseScreen(AniLibriaClient: AniLibria, preloadTitleInfo: PreloadTitleInfo, navController: NavController) {
     val releleaseId = preloadTitleInfo.releaseID.intValue
-    val release = rememberSaveable { mutableStateOf(LTitle()) }
+    val release = rememberSaveable { mutableStateOf(
+        LTitle(
+            id = -1,
+            name = LTitleName("null"),
+            is_in_production = false,
+            is_blocked_by_geo = false,
+            episodes_are_unknown = false,
+            is_blocked_by_copyrights = false,
+            added_in_users_favorites = 0,
+            genres = listOf(
+                LGenre(
+                    id = 0,
+                    name = "null",
+                    total_releases = 0
+                )
+            )
+        )
+    ) }
     val isLoading = rememberSaveable { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
@@ -51,7 +70,7 @@ fun ReleaseScreen(AniLibriaClient: Libria, preloadTitleInfo: PreloadTitleInfo, n
     val rightInset = with(LocalDensity.current) { insets.getInsets(WindowInsetsCompat.Type.systemBars()).right.toDp() }
 
     LaunchedEffect(release) {
-        if (release.value.id == null && !isLoading.value) {
+        if (release.value.id == -1 && !isLoading.value) {
             coroutineScope.launch {
                 isLoading.value = true
                 release.value = AniLibriaClient.getTitleById(releleaseId)
@@ -74,7 +93,7 @@ fun ReleaseScreen(AniLibriaClient: Libria, preloadTitleInfo: PreloadTitleInfo, n
                 ) {
                     SubcomposeAsyncImage(
                         modifier = Modifier.clip(RoundedCornerShape(10.dp)),
-                        model = preloadTitleInfo.preloadTitleInfo.value.posters?.getPosterUrl(),
+                        model = AniLibriaClient.baseUrl + preloadTitleInfo.preloadTitleInfo.value.poster?.src,
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.height(20.dp))

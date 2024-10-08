@@ -84,14 +84,16 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("androidx.navigation:navigation-compose:$nav_version")
-    implementation("androidx.datastore:datastore-preferences:$dataStoreVersion")
-    implementation("io.coil-kt:coil:$coilVersion")
-    implementation("io.coil-kt:coil-compose:$coilVersion")
 
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
-    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.coil)
+    implementation(libs.coil.compose)
+
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.content.negotiation)
 
 }

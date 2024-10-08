@@ -22,8 +22,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -36,15 +38,18 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import kotlinx.coroutines.launch
 import tech.axeinstd.anixapp.AniLibriaClient
 import tech.axeinstd.anixapp.R
 import tech.axeinstd.anixapp.compose.Search
+import tech.axeinstd.anixapp.data.storage.UserStorage
 import tech.axeinstd.anixapp.loadingScreenRoute
 import tech.axeinstd.anixapp.loginScreenRoute
 import tech.axeinstd.anixapp.releaseScreenRoute
 import tech.axeinstd.anixapp.screens.home.compose.navigation.BottomNavBarItem
 import tech.axeinstd.anixapp.screens.home.compose.subscreens.FavsHomeScreen
 import tech.axeinstd.anixapp.screens.home.compose.subscreens.MainHomeScreen
+import tech.axeinstd.anixapp.screens.home.compose.subscreens.ProfileHomeScreen
 import tech.axeinstd.anixapp.screens.home.compose.subscreens.ScheduleHomeScreen
 import tech.axeinstd.anixapp.screens.release.ReleaseScreen
 import tech.axeinstd.anixapp.view_models.PreloadTitleInfo
@@ -74,7 +79,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
             title = "Профиль",
             selectedIcon = Icons.Rounded.Person,
             unselectedIcon = Icons.Outlined.Person,
-            route = ""
+            route = "profileHomeScreen"
         )
     )
     val currentItemIndex = rememberSaveable { mutableIntStateOf(0) }
@@ -82,7 +87,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
 
-    val sessionId = rememberSaveable { mutableStateOf("UjXG6Vteqjh4EBsGXDNtFaEKGHfqBrUk") }
+    val token = rememberSaveable { mutableStateOf("") } // "UjXG6Vteqjh4EBsGXDNtFaEKGHfqBrUk"
 
     val preloadTitleInfoModel: PreloadTitleInfo = viewModel()
 
@@ -90,11 +95,13 @@ fun HomeScreen(navController: NavHostController, context: Context) {
 
     val isTopLevelScreen = when (navBackStackEntry.value?.destination?.route) {
         releaseScreenRoute -> true
+        loginScreenRoute -> true
         else -> false
     }
 
-    val needToHideNavBar = rememberSaveable { mutableStateOf(false) }
 
+    val needToHideNavBar = rememberSaveable { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     val isActiveSearch = rememberSaveable { mutableStateOf(false) }
     val searchBar = @Composable {
         Search(
@@ -107,6 +114,25 @@ fun HomeScreen(navController: NavHostController, context: Context) {
         )
     }
 
+    val userDataStore = UserStorage(context)
+
+    LaunchedEffect(key1 = true) {
+        userDataStore.getUserId().collect { sessionid ->
+            if (sessionid == null || sessionid == "") {
+                userDataStore.getIfNeedToShowLoginScreen().collect { needToShow ->
+                    if (needToShow == null || needToShow) {
+                        navController.navigate(loginScreenRoute) {
+                            popUpTo(loginScreenRoute) {
+                                saveState = true
+                            }
+                        }
+                    }
+                }
+            } else {
+                token.value = sessionid
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -164,7 +190,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
 
         NavHost(
             navController = navController,
-            startDestination = navBarItems[0].route,
+            startDestination =  navBarItems[0].route,
             enterTransition = {
                 fadeIn(tween(250))
             },
@@ -187,9 +213,20 @@ fun HomeScreen(navController: NavHostController, context: Context) {
                 LoginScreen(
                     AniLibriaClient = AniLibriaClient,
                     onComplete = { sessionid ->
-                        sessionId.value = sessionid
-                        navController.navigate(navBarItems[0].route) {
-                            popUpToRoute
+                        coroutineScope.launch {
+                            userDataStore.saveUserId(sessionid)
+                            token.value = sessionid
+                            navController.navigate(navBarItems[0].route) {
+                                popUpToRoute
+                            }
+                        }
+                    },
+                    onDismiss = {   needToShowLoginScreen ->
+                        coroutineScope.launch {
+                            userDataStore.setShowLoginScreen(needToShowLoginScreen)
+                            navController.navigate(navBarItems[0].route) {
+                                popUpToRoute
+                            }
                         }
                     }
                 )
@@ -198,7 +235,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
             composable(navBarItems[0].route) {
                 MainHomeScreen(
                     AniLibriaClient = AniLibriaClient,
-                    sessionID = sessionId,
+                    token = token,
                     padding = innerPadding,
                     navController = navController,
                     preloadTitleInfoModel
@@ -207,7 +244,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
             composable(navBarItems[1].route) {
                 FavsHomeScreen(
                     AniLibriaClient = AniLibriaClient,
-                    sessionID = sessionId,
+                    token = token,
                     padding = innerPadding
                 )
             }
@@ -215,6 +252,13 @@ fun HomeScreen(navController: NavHostController, context: Context) {
             composable(navBarItems[2].route) {
                 ScheduleHomeScreen(
                     AniLibriaClient = AniLibriaClient,
+                    padding = innerPadding,
+                    preloadTitleInfoModel,
+                    navController
+                )
+            }
+            composable(navBarItems[3].route) {
+                ProfileHomeScreen(
                     padding = innerPadding
                 )
             }
@@ -226,7 +270,5 @@ fun HomeScreen(navController: NavHostController, context: Context) {
                 )
             }
         }
-
-
     }
 }

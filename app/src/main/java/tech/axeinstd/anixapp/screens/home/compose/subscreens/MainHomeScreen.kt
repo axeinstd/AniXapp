@@ -44,14 +44,18 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.launch
-import tech.axeinstd.anilibri3.Libria
-import tech.axeinstd.anilibri3.data.title.LPagination
-import tech.axeinstd.anilibri3.data.title.LTitleList
+import tech.axeinstd.anilibria.AniLibria
+import tech.axeinstd.anilibria.data.title.LTitleList
+import tech.axeinstd.anilibria.data.title.meta.LMeta
+import tech.axeinstd.anilibria.data.title.meta.LPagination
+import tech.axeinstd.anilibria.data.title.meta.LPaginationLinks
+import tech.axeinstd.anilibria.enumerates.title.Sorting
+import tech.axeinstd.anixapp.data.storage.UserStorage
 import tech.axeinstd.anixapp.releaseScreenRoute
 import tech.axeinstd.anixapp.view_models.PreloadTitleInfo
 
 @Composable
-fun MainHomeScreen(AniLibriaClient: Libria, sessionID: MutableState<String>, padding: PaddingValues, navController: NavController, preloadTitleInfo: PreloadTitleInfo) {
+fun MainHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padding: PaddingValues, navController: NavController, preloadTitleInfo: PreloadTitleInfo) {
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
     val density = LocalDensity.current
@@ -62,17 +66,20 @@ fun MainHomeScreen(AniLibriaClient: Libria, sessionID: MutableState<String>, pad
 
     val currentPage = rememberSaveable { mutableIntStateOf(1) }
 
-    val isLoading = rememberSaveable { mutableStateOf(false) }
-
+    val isLoading = remember { mutableStateOf(false) }
     val titlesList = rememberSaveable {
         mutableStateOf(
             LTitleList(
-                list = emptyList(),
-                pagination = LPagination(
-                    pages = 1,
-                    current_page = 0,
-                    items_per_page = 0,
-                    total_items = 0
+                data = emptyList(),
+                meta = LMeta(
+                    pagination = LPagination(
+                        total = 0,
+                        count = 0,
+                        per_page = 0,
+                        current_page = 0,
+                        total_pages = 0,
+                        links = LPaginationLinks()
+                    )
                 )
             )
         )
@@ -81,26 +88,24 @@ fun MainHomeScreen(AniLibriaClient: Libria, sessionID: MutableState<String>, pad
     val needLoadTitles by remember {
         derivedStateOf {
             (scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-                ?: 0) >= scrollState.layoutInfo.totalItemsCount - 2 && titlesList.value.pagination.pages > titlesList.value.pagination.current_page && !isLoading.value
+                ?: 0) >= scrollState.layoutInfo.totalItemsCount - 2 && titlesList.value.meta.pagination.total_pages > titlesList.value.meta.pagination.current_page && !isLoading.value
         }
     }
 
     LaunchedEffect(needLoadTitles) {
-        if (needLoadTitles || titlesList.value.list.isEmpty()) {
+        if (needLoadTitles || (titlesList.value.data.isEmpty() && !isLoading.value)) {
+            println("LOADING")
             coroutineScope.launch {
                 isLoading.value = true
-                val res: LTitleList = AniLibriaClient.advancedSearch(
-                    "list",
+                val res: LTitleList = AniLibriaClient.releases(
                     page = currentPage.intValue,
-                    filter = "id,names,description,posters",
-                    items_per_page = loadTitlesCount,
-                    order_by = "in_favorites",
-                    sort_direction = 1
+                    limit = loadTitlesCount,
+                    sorting = Sorting.RATING_DESC
                 )
                 currentPage.intValue++
                 titlesList.value = titlesList.value.copy(
-                    list = titlesList.value.list + res.list,
-                    pagination = res.pagination
+                    data = titlesList.value.data + res.data,
+                    meta = res.meta
                 )
                 isLoading.value = false
             }
@@ -118,14 +123,14 @@ fun MainHomeScreen(AniLibriaClient: Libria, sessionID: MutableState<String>, pad
                     modifier = Modifier.height(padding.calculateTopPadding() + 10.dp)
                 )
             }
-            items(titlesList.value.list) { title ->
+            items(titlesList.value.data) { title ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .clickable {
-                            preloadTitleInfo.releaseID.intValue = title.id ?: 9000
+                            preloadTitleInfo.releaseID.intValue = title.id
                             preloadTitleInfo.preloadTitleInfo.value = title
                             navController.navigate(releaseScreenRoute) {
                                 popUpTo(releaseScreenRoute)
@@ -144,11 +149,11 @@ fun MainHomeScreen(AniLibriaClient: Libria, sessionID: MutableState<String>, pad
                         modifier = Modifier.fillMaxSize()
                     ) {
                         SubcomposeAsyncImage(
-                            model = title.posters?.getPosterUrl(),
+                            model = AniLibriaClient.baseUrl + title.poster?.src,
                             loading = {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth(0.1.toFloat())
+                                        .fillMaxWidth(0.22.toFloat())
                                         .background(MaterialTheme.colorScheme.background)
                                 )
                             },
@@ -156,7 +161,7 @@ fun MainHomeScreen(AniLibriaClient: Libria, sessionID: MutableState<String>, pad
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text("${title.names?.ru}", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Text(title.name.main, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                             Spacer(modifier = Modifier.height(5.dp))
                             Text(title.description ?: "Описание не найдено", fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 11.sp, color = descriptionColor)
                         }
