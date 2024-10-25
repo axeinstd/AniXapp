@@ -12,7 +12,7 @@ import tech.axeinstd.anilibria.data.title.meta.LPagination
 import tech.axeinstd.anilibria.data.title.meta.LPaginationLinks
 import tech.axeinstd.anixapp.AniLibriaClient
 
-class UserFavoritesViewModel(token: String): ViewModel() {
+class UserFavoritesViewModel(): ViewModel() {
     private val _favorites = mutableStateOf(
         LFavoritesList(
             meta = LMeta(
@@ -32,14 +32,12 @@ class UserFavoritesViewModel(token: String): ViewModel() {
     private val _isLoading: MutableState<Boolean> = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
-    init {
+    fun loadFavorites(token: String) {
         viewModelScope.launch {
-            if (token != "") {
-                _isLoading.value = true
-                val res: LFavoritesList = AniLibriaClient.getUserFavorites(token = token)
-                _favorites.value = res
-                _isLoading.value = false
-            }
+            _isLoading.value = true
+            val res: LFavoritesList = AniLibriaClient.getUserFavorites(token = token)
+            _favorites.value = res
+            _isLoading.value = false
         }
     }
 }

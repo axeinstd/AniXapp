@@ -43,14 +43,23 @@ import tech.axeinstd.anixapp.view_models.UserFavoritesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FavsHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padding: PaddingValues) {
+fun FavsHomeScreen(
+    AniLibriaClient: AniLibria,
+    token: MutableState<String>,
+    padding: PaddingValues,
+    favoritesViewModel: UserFavoritesViewModel
+) {
 
     val scrollState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
     val isLoading = rememberSaveable { mutableStateOf(false) }
 
-    val favoritesViewModel = UserFavoritesViewModel(token.value)
+    val descriptionColor = MaterialTheme.colorScheme.surface.copy(
+        red = MaterialTheme.colorScheme.surface.red + if (isSystemInDarkTheme()) 0.5f else -0.5f,
+        green = MaterialTheme.colorScheme.surface.green + if (isSystemInDarkTheme()) 0.5f else -0.5f,
+        blue = MaterialTheme.colorScheme.surface.blue + if (isSystemInDarkTheme()) 0.5f else -0.5f
+    )
 
     Scaffold(
         topBar = {
@@ -78,12 +87,8 @@ fun FavsHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padd
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer
                             )
                         ) {
-                            val descriptionColor = MaterialTheme.colorScheme.surface.copy(
-                                red = MaterialTheme.colorScheme.surface.red + if (isSystemInDarkTheme()) 0.5f else -0.5f,
-                                green = MaterialTheme.colorScheme.surface.green + if (isSystemInDarkTheme()) 0.5f else -0.5f,
-                                blue = MaterialTheme.colorScheme.surface.blue + if (isSystemInDarkTheme()) 0.5f else -0.5f
-                            )
-                            Row (
+
+                            Row(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 SubcomposeAsyncImage(
@@ -99,9 +104,19 @@ fun FavsHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padd
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(title.name.main, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                    Text(
+                                        title.name.main,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 20.sp
+                                    )
                                     Spacer(modifier = Modifier.height(5.dp))
-                                    Text(title.description ?: "Описание не найдено", fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 11.sp, color = descriptionColor)
+                                    Text(
+                                        title.description ?: "Описание не найдено",
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 11.sp,
+                                        lineHeight = 11.sp,
+                                        color = descriptionColor
+                                    )
                                 }
                             }
                         }
@@ -121,8 +136,7 @@ fun FavsHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padd
                     }
                 }
             }
-        }
-        else {
+        } else {
             Box(
                 modifier = Modifier
                     .padding(bottom = padding.calculateBottomPadding())
@@ -132,9 +146,11 @@ fun FavsHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padd
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Rounded.Star, contentDescription = null, modifier = Modifier
-                        .height(48.dp)
-                        .width(48.dp))
+                    Icon(
+                        Icons.Rounded.Star, contentDescription = null, modifier = Modifier
+                            .height(48.dp)
+                            .width(48.dp)
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text("Авторизуйтесь для просмотра", fontWeight = FontWeight.Bold)
                     Text("избранных релизов", fontWeight = FontWeight.Bold)

@@ -45,6 +45,7 @@ import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.launch
 import tech.axeinstd.anilibria.AniLibria
+import tech.axeinstd.anilibria.data.title.LTitle
 import tech.axeinstd.anilibria.data.title.LTitleList
 import tech.axeinstd.anilibria.data.title.meta.LMeta
 import tech.axeinstd.anilibria.data.title.meta.LPagination
@@ -52,64 +53,33 @@ import tech.axeinstd.anilibria.data.title.meta.LPaginationLinks
 import tech.axeinstd.anilibria.enumerates.title.Sorting
 import tech.axeinstd.anixapp.data.storage.UserStorage
 import tech.axeinstd.anixapp.releaseScreenRoute
+import tech.axeinstd.anixapp.view_models.HomeTitleListViewModel
 import tech.axeinstd.anixapp.view_models.PreloadTitleInfo
 
 @Composable
-fun MainHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padding: PaddingValues, navController: NavController, preloadTitleInfo: PreloadTitleInfo) {
+fun MainHomeScreen(
+    AniLibriaClient: AniLibria,
+    token: MutableState<String>,
+    padding: PaddingValues,
+    navController: NavController,
+    preloadTitleInfo: PreloadTitleInfo,
+    homeTitleListViewModel: HomeTitleListViewModel
+) {
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
     val density = LocalDensity.current
-    val loadTitlesCount = with (density) { screenHeight.toPx().toInt() / 120.dp.toPx().toInt() + 3}
+    val loadTitlesCount = with(density) { screenHeight.toPx().toInt() / 120.dp.toPx().toInt() + 3 }
 
     val scrollState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-
-    val currentPage = rememberSaveable { mutableIntStateOf(1) }
-
-    val isLoading = remember { mutableStateOf(false) }
-    val titlesList = rememberSaveable {
-        mutableStateOf(
-            LTitleList(
-                data = emptyList(),
-                meta = LMeta(
-                    pagination = LPagination(
-                        total = 0,
-                        count = 0,
-                        per_page = 0,
-                        current_page = 0,
-                        total_pages = 0,
-                        links = LPaginationLinks()
-                    )
-                )
-            )
-        )
-    }
 
     val needLoadTitles by remember {
         derivedStateOf {
-            (scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-                ?: 0) >= scrollState.layoutInfo.totalItemsCount - 2 && titlesList.value.meta.pagination.total_pages > titlesList.value.meta.pagination.current_page && !isLoading.value
+            (!homeTitleListViewModel.isLoading.value && (scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                ?: 0) >= scrollState.layoutInfo.totalItemsCount - 2) && homeTitleListViewModel.list.value.meta.pagination.total_pages > homeTitleListViewModel.list.value.meta.pagination.current_page && !homeTitleListViewModel.isLoading.value
         }
     }
-
     LaunchedEffect(needLoadTitles) {
-        if (needLoadTitles || (titlesList.value.data.isEmpty() && !isLoading.value)) {
-            println("LOADING")
-            coroutineScope.launch {
-                isLoading.value = true
-                val res: LTitleList = AniLibriaClient.releases(
-                    page = currentPage.intValue,
-                    limit = loadTitlesCount,
-                    sorting = Sorting.RATING_DESC
-                )
-                currentPage.intValue++
-                titlesList.value = titlesList.value.copy(
-                    data = titlesList.value.data + res.data,
-                    meta = res.meta
-                )
-                isLoading.value = false
-            }
-        }
+        homeTitleListViewModel.load()
     }
 
     Scaffold { innerPadding ->
@@ -123,7 +93,7 @@ fun MainHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padd
                     modifier = Modifier.height(padding.calculateTopPadding() + 10.dp)
                 )
             }
-            items(titlesList.value.data) { title ->
+            items(homeTitleListViewModel.list.value.data) { title ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -145,7 +115,7 @@ fun MainHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padd
                         green = MaterialTheme.colorScheme.surface.green + if (isSystemInDarkTheme()) 0.5f else -0.5f,
                         blue = MaterialTheme.colorScheme.surface.blue + if (isSystemInDarkTheme()) 0.5f else -0.5f
                     )
-                    Row (
+                    Row(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         SubcomposeAsyncImage(
@@ -163,13 +133,19 @@ fun MainHomeScreen(AniLibriaClient: AniLibria, token: MutableState<String>, padd
                         Column {
                             Text(title.name.main, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                             Spacer(modifier = Modifier.height(5.dp))
-                            Text(title.description ?: "Описание не найдено", fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 11.sp, color = descriptionColor)
+                            Text(
+                                title.description ?: "Описание не найдено",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 11.sp,
+                                lineHeight = 11.sp,
+                                color = descriptionColor
+                            )
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
             }
-            if (isLoading.value) {
+            if (homeTitleListViewModel.isLoading.value) {
                 item {
                     Box(
                         modifier = Modifier

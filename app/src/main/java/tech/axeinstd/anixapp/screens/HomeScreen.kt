@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,10 +53,21 @@ import tech.axeinstd.anixapp.screens.home.compose.subscreens.MainHomeScreen
 import tech.axeinstd.anixapp.screens.home.compose.subscreens.ProfileHomeScreen
 import tech.axeinstd.anixapp.screens.home.compose.subscreens.ScheduleHomeScreen
 import tech.axeinstd.anixapp.screens.release.ReleaseScreen
+import tech.axeinstd.anixapp.view_models.HomeTitleListViewModel
 import tech.axeinstd.anixapp.view_models.PreloadTitleInfo
+import tech.axeinstd.anixapp.view_models.ScheduleViewModel
+import tech.axeinstd.anixapp.view_models.UserFavoritesViewModel
 
 @Composable
-fun HomeScreen(navController: NavHostController, context: Context) {
+fun HomeScreen(
+    navController: NavHostController,
+    context: Context,
+    token: MutableState<String>,
+    userDataStore: UserStorage,
+    homeTitleListViewModel: HomeTitleListViewModel,
+    favoritesViewModel: UserFavoritesViewModel,
+    scheduleViewModel: ScheduleViewModel
+) {
     val navBarItems = listOf(
         BottomNavBarItem(
             title = "Главная",
@@ -114,7 +126,6 @@ fun HomeScreen(navController: NavHostController, context: Context) {
         )
     }
 
-    val userDataStore = UserStorage(context)
 
     LaunchedEffect(key1 = true) {
         userDataStore.getUserId().collect { sessionid ->
@@ -130,6 +141,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
                 }
             } else {
                 token.value = sessionid
+                favoritesViewModel.loadFavorites(token = token.value)
             }
         }
     }
@@ -190,7 +202,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
 
         NavHost(
             navController = navController,
-            startDestination =  navBarItems[0].route,
+            startDestination = navBarItems[0].route,
             enterTransition = {
                 fadeIn(tween(250))
             },
@@ -221,7 +233,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
                             }
                         }
                     },
-                    onDismiss = {   needToShowLoginScreen ->
+                    onDismiss = { needToShowLoginScreen ->
                         coroutineScope.launch {
                             userDataStore.setShowLoginScreen(needToShowLoginScreen)
                             navController.navigate(navBarItems[0].route) {
@@ -238,14 +250,16 @@ fun HomeScreen(navController: NavHostController, context: Context) {
                     token = token,
                     padding = innerPadding,
                     navController = navController,
-                    preloadTitleInfoModel
+                    preloadTitleInfoModel,
+                    homeTitleListViewModel = homeTitleListViewModel
                 )
             }
             composable(navBarItems[1].route) {
                 FavsHomeScreen(
                     AniLibriaClient = AniLibriaClient,
                     token = token,
-                    padding = innerPadding
+                    padding = innerPadding,
+                    favoritesViewModel = favoritesViewModel
                 )
             }
 
@@ -254,7 +268,8 @@ fun HomeScreen(navController: NavHostController, context: Context) {
                     AniLibriaClient = AniLibriaClient,
                     padding = innerPadding,
                     preloadTitleInfoModel,
-                    navController
+                    navController,
+                    scheduleViewModel = scheduleViewModel
                 )
             }
             composable(navBarItems[3].route) {

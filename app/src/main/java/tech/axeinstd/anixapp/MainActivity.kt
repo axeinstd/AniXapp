@@ -65,8 +65,12 @@ import tech.axeinstd.anixapp.screens.home.compose.navigation.BottomNavBarItem
 import tech.axeinstd.anixapp.screens.home.compose.subscreens.FavsHomeScreen
 import tech.axeinstd.anixapp.screens.home.compose.subscreens.MainHomeScreen
 import tech.axeinstd.anixapp.compose.Search
+import tech.axeinstd.anixapp.data.storage.UserStorage
 import tech.axeinstd.anixapp.screens.HomeScreen
+import tech.axeinstd.anixapp.view_models.HomeTitleListViewModel
+import tech.axeinstd.anixapp.view_models.ScheduleViewModel
 import tech.axeinstd.anixapp.view_models.SplashScreen
+import tech.axeinstd.anixapp.view_models.UserFavoritesViewModel
 
 const val loadingScreenRoute: String = "loadingScreen"
 const val loginScreenRoute: String = "loginScreen"
@@ -93,8 +97,14 @@ class MainActivity : ComponentActivity() {
             }
             splashScreenViewModel.isLoading.value
         }
+        // MODELS & STORES INITIALIZATION
+        val userDataStore = UserStorage(context)
+        val homeTitleListViewModel = HomeTitleListViewModel()
+        val favoritesViewModel = UserFavoritesViewModel()
+        val scheduleViewModel = ScheduleViewModel()
         setContent {
             val navController = rememberNavController()
+            val token = rememberSaveable { mutableStateOf("") }
             enableEdgeToEdge(
                 navigationBarStyle = if (isSystemInDarkTheme()) SystemBarStyle.dark(
                     android.graphics.Color.TRANSPARENT
@@ -104,7 +114,15 @@ class MainActivity : ComponentActivity() {
                 )
             )
             AnixappTheme {
-                HomeScreen(navController, context)
+                HomeScreen(
+                    navController = navController,
+                    context = context,
+                    userDataStore = userDataStore,
+                    homeTitleListViewModel = homeTitleListViewModel,
+                    favoritesViewModel = favoritesViewModel,
+                    scheduleViewModel = scheduleViewModel,
+                    token = token
+                )
             }
         }
     }

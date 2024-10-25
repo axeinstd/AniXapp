@@ -3,6 +3,7 @@ package tech.axeinstd.anilibria
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.delete
 import io.ktor.client.request.forms.FormDataContent
@@ -10,11 +11,13 @@ import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
+import io.ktor.serialization.JsonConvertException
 import io.ktor.serialization.kotlinx.KotlinxSerializationConverter
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.encodeToString
@@ -52,6 +55,11 @@ class AniLibria(
                 jsonConfig
             )
             register(ContentType.Text.Html, KotlinxSerializationConverter(Json))
+        }
+        install(HttpRequestRetry) {
+            retryOnExceptionIf { request, cause ->
+                cause is JsonConvertException
+            }
         }
     }
 
@@ -116,8 +124,10 @@ class AniLibria(
             "f[years][to_year]" to to_year?.toString(),
             "f[search]" to search,
             "f[sorting]" to sorting?.toString(),
-            "f[age_ratings]" to age_ratings?.toString()?.substring(1, age_ratings.toString().length - 1),
-            "f[publish_statuses]" to publish_statuses?.toString()?.substring(1, publish_statuses.toString().length - 1),
+            "f[age_ratings]" to age_ratings?.toString()
+                ?.substring(1, age_ratings.toString().length - 1),
+            "f[publish_statuses]" to publish_statuses?.toString()
+                ?.substring(1, publish_statuses.toString().length - 1),
             "f[production_statuses]" to production_statuses?.toString()
                 ?.substring(1, production_statuses.toString().length - 1)
         )
@@ -235,6 +245,7 @@ class AniLibria(
             }
             return lScheduleDayList
         }
+
         fun separateMembersByTheirWork(members: List<LMember>): LMembers {
             val membersList: LMembers = LMembers(
                 voicing = mutableListOf(),
