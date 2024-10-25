@@ -1,6 +1,8 @@
 # AniXapp
 Android клиент для просмотра аниме в русской озвучке.
 
+![preview](/GIHUB/assets/preview.png)
+
 ### Roadmap
 - [x] Интеграция с api AniLibria
 - [x] Миграция на новый AniLibriaAPI
